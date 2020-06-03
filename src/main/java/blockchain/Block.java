@@ -18,8 +18,11 @@ public class Block implements Serializable {
 
     private String hash;
 
-    public Block(long id, String previousHash) {
+    private int difficulty;
+
+    public Block(long id, String previousHash, int difficulty) {
         this.id = id;
+        this.difficulty = difficulty;
         this.timestamp = Instant.now().toEpochMilli();
         this.previousHash = previousHash;
         this.hash = calculateHash();
@@ -27,6 +30,10 @@ public class Block implements Serializable {
 
     public long getId() {
         return id;
+    }
+
+    public long getTimestamp() {
+        return timestamp;
     }
 
     public String getPreviousHash() {
@@ -37,8 +44,16 @@ public class Block implements Serializable {
         return hash;
     }
 
+    public int getDifficulty() {
+        return difficulty;
+    }
+
+    public void setMagic(int magic) {
+        this.magic = magic;
+    }
+
     public String calculateHash() {
-        String inputData = String.valueOf(id) + magic + timestamp + previousHash;
+        String inputData = String.valueOf(id) + magic + difficulty + timestamp + previousHash;
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] inputBytes = inputData.getBytes(StandardCharsets.UTF_8);
@@ -58,18 +73,14 @@ public class Block implements Serializable {
         }
     }
 
-    public void mineBlock(int difficulty) {
-        String prefix = "0".repeat(difficulty);
-        while (!hash.substring(0, difficulty).equals(prefix)) {
-            magic++;
-            hash = calculateHash();
-        }
+    public void mineBlock() {
+        magic++;
+        hash = calculateHash();
     }
 
     @Override
     public String toString() {
-        return "Block:" + System.lineSeparator() +
-                "Id: " + id + System.lineSeparator() +
+        return "Id: " + id + System.lineSeparator() +
                 "Timestamp: " + timestamp + System.lineSeparator() +
                 "Magic number: " + magic + System.lineSeparator() +
                 "Hash of the previous block: " + previousHash + System.lineSeparator() +
