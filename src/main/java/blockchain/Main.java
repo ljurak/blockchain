@@ -12,8 +12,10 @@ import java.util.Scanner;
 
 public class Main {
 
+    private static final int MINERS = 8;
+
     public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
+        /*Scanner scanner = new Scanner(System.in);
         String filename = args.length > 0 ? args[0] : null;
 
         BlockChain blockChain = loadBlockChain(filename);
@@ -22,16 +24,22 @@ public class Main {
             int difficulty = Integer.parseInt(scanner.nextLine());
             System.out.println();
             blockChain = new BlockChain(difficulty);
+        }*/
+
+        BlockChain blockChain = new BlockChain();
+
+        MinerThread[] miners = new MinerThread[MINERS];
+
+        for (int i = 0; i < MINERS; i++) {
+            miners[i] = new MinerThread(blockChain, Integer.MIN_VALUE + i * (Integer.MAX_VALUE / 4), i + 1);
+            blockChain.addMiner(miners[i]);
         }
 
-        // System.out.println(blockChain);
-
-        for (int i = 0; i < 5; i++) {
-            blockChain.addBlock();
-            System.out.println();
+        for (int i = 0; i < MINERS; i++) {
+            miners[i].start();
         }
 
-        saveBlocks(blockChain, filename);
+        /*saveBlocks(blockChain, filename);*/
     }
 
     private static void saveBlocks(BlockChain blockChain, String filename) {
