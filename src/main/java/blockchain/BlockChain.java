@@ -10,7 +10,11 @@ public class BlockChain implements Serializable, MinerManager {
 
     private List<Miner> miners = new ArrayList<>();
 
+    private List<String> messages = new ArrayList<>();
+
     private Block nextBlock;
+
+    private volatile int size;
 
     private int difficulty;
 
@@ -20,15 +24,15 @@ public class BlockChain implements Serializable, MinerManager {
 
     public BlockChain(int difficulty) {
         this.difficulty = difficulty;
-        this.nextBlock = new Block(1, "0", difficulty);
+        this.nextBlock = new Block(1, buildMessageString(), "0", difficulty);
     }
 
     public synchronized Block getNextBlock() {
-        return new Block(nextBlock.getId(), nextBlock.getPreviousHash(), nextBlock.getDifficulty());
+        return new Block(nextBlock.getId(), nextBlock.getData(), nextBlock.getPreviousHash(), nextBlock.getDifficulty());
     }
 
     public int size() {
-        return blocks.size();
+        return size;
     }
 
     @Override
@@ -53,6 +57,10 @@ public class BlockChain implements Serializable, MinerManager {
         }
     }
 
+    public synchronized void addMessage(String message) {
+        messages.add(message);
+    }
+
     public boolean acceptBlock(Block block, long generationTime) {
         String prefix = "0".repeat(difficulty);
 
@@ -73,6 +81,7 @@ public class BlockChain implements Serializable, MinerManager {
 
         if (isBlockValid) {
             blocks.add(block);
+            size++;
 
             if (generationTime < 10) {
                 difficulty++;
@@ -80,13 +89,26 @@ public class BlockChain implements Serializable, MinerManager {
                 difficulty--;
             }
 
-            nextBlock = new Block(block.getId() + 1, block.getHash(), difficulty);
+            nextBlock = new Block(block.getId() + 1, buildMessageString(), block.getHash(), difficulty);
+            messages.clear();
 
             notifyMiners();
             return true;
         }
 
         return false;
+    }
+
+    private String buildMessageString() {
+        if (!messages.isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            for (String message : messages) {
+                sb.append(message).append(System.lineSeparator());
+            }
+            return sb.deleteCharAt(sb.length() - 1).toString();
+        }
+
+        return "";
     }
 
     public boolean checkValidity() {
