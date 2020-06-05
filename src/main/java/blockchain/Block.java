@@ -14,14 +14,17 @@ public class Block implements Serializable {
 
     private int magic;
 
+    private String data;
+
     private String previousHash;
 
     private String hash;
 
     private int difficulty;
 
-    public Block(long id, String previousHash, int difficulty) {
+    public Block(long id, String data, String previousHash, int difficulty) {
         this.id = id;
+        this.data = data;
         this.difficulty = difficulty;
         this.timestamp = Instant.now().toEpochMilli();
         this.previousHash = previousHash;
@@ -34,6 +37,10 @@ public class Block implements Serializable {
 
     public long getTimestamp() {
         return timestamp;
+    }
+
+    public String getData() {
+        return data;
     }
 
     public String getPreviousHash() {
@@ -53,7 +60,7 @@ public class Block implements Serializable {
     }
 
     public String calculateHash() {
-        String inputData = String.valueOf(id) + magic + difficulty + timestamp + previousHash;
+        String inputData = id + data + magic + difficulty + timestamp + previousHash;
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] inputBytes = inputData.getBytes(StandardCharsets.UTF_8);
@@ -84,6 +91,7 @@ public class Block implements Serializable {
                 "Timestamp: " + timestamp + System.lineSeparator() +
                 "Magic number: " + magic + System.lineSeparator() +
                 "Hash of the previous block: " + previousHash + System.lineSeparator() +
-                "Hash of the block: " + hash;
+                "Hash of the block: " + hash + System.lineSeparator() +
+                "Block data: " + (data.length() == 0 ? "no messages" : (System.lineSeparator() + data));
     }
 }
