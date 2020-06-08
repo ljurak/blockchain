@@ -1,8 +1,16 @@
 package blockchain;
 
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class BlockChain implements Serializable, MinerManager {
 
@@ -12,17 +20,21 @@ public class BlockChain implements Serializable, MinerManager {
 
     private List<String> messages = new ArrayList<>();
 
+    private Map<String, PublicKey> keys = new HashMap<>();
+
+    private Signature signature = Signature.getInstance("SHA256withDSA");
+
     private Block nextBlock;
 
     private volatile int size;
 
     private int difficulty;
 
-    public BlockChain() {
+    public BlockChain() throws NoSuchAlgorithmException {
         this(0);
     }
 
-    public BlockChain(int difficulty) {
+    public BlockChain(int difficulty) throws NoSuchAlgorithmException {
         this.difficulty = difficulty;
         this.nextBlock = new Block(1, buildMessageString(), "0", difficulty);
     }
@@ -57,8 +69,30 @@ public class BlockChain implements Serializable, MinerManager {
         }
     }
 
-    public synchronized void addMessage(String message) {
-        messages.add(message);
+    public synchronized void setPublicKey(String username, PublicKey key) {
+        keys.put(username, key);
+    }
+
+    public synchronized boolean addMessage(ChatMessage chatMessage) {
+        PublicKey key = keys.get(chatMessage.getUsername());
+
+        if (key != null) {
+            try {
+                signature.initVerify(keys.get(chatMessage.getUsername()));
+                signature.update(chatMessage.getMessage().getBytes(StandardCharsets.UTF_8));
+
+                if (signature.verify(chatMessage.getSignature())) {
+                    messages.add(chatMessage.getMessage());
+                    return true;
+                }
+
+                return false;
+            } catch (InvalidKeyException | SignatureException e) {
+                return false;
+            }
+        }
+
+        return false;
     }
 
     public boolean acceptBlock(Block block, long generationTime) {
