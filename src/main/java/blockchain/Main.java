@@ -8,38 +8,37 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.util.Scanner;
+import java.security.NoSuchAlgorithmException;
 
 public class Main {
 
-    private static final int MINERS = 8;
+    private static final int MINERS = 4;
 
-    public static void main(String[] args) {
-        /*Scanner scanner = new Scanner(System.in);
-        String filename = args.length > 0 ? args[0] : null;
-
-        BlockChain blockChain = loadBlockChain(filename);
-        if (blockChain == null || !blockChain.checkValidity()) {
-            System.out.print("Enter how many zeros the hash must start with: ");
-            int difficulty = Integer.parseInt(scanner.nextLine());
-            System.out.println();
-            blockChain = new BlockChain(difficulty);
-        }*/
-
+    public static void main(String[] args) throws InterruptedException, NoSuchAlgorithmException {
         BlockChain blockChain = new BlockChain();
+
+        ChatUser sarah = new ChatUser("Sarah", blockChain);
+        ChatUser mike = new ChatUser("Mike", blockChain);
+        ChatUser john = new ChatUser("John", blockChain);
+        ChatUser katie = new ChatUser("Katie", blockChain);
+
+        sarah.start();
+        mike.start();
+        john.start();
+        katie.start();
+
+        Thread.sleep(200);
 
         MinerThread[] miners = new MinerThread[MINERS];
 
         for (int i = 0; i < MINERS; i++) {
-            miners[i] = new MinerThread(blockChain, Integer.MIN_VALUE + i * (Integer.MAX_VALUE / 4), i + 1);
+            miners[i] = new MinerThread(blockChain, Integer.MIN_VALUE + i * (Integer.MAX_VALUE / (MINERS / 2)), i + 1);
             blockChain.addMiner(miners[i]);
         }
 
         for (int i = 0; i < MINERS; i++) {
             miners[i].start();
         }
-
-        /*saveBlocks(blockChain, filename);*/
     }
 
     private static void saveBlocks(BlockChain blockChain, String filename) {
