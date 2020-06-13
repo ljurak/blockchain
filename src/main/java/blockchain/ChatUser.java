@@ -32,14 +32,16 @@ public class ChatUser extends Thread {
             signature.initSign(keyPair.getPrivate());
 
             while (blockChain.size() < BLOCK_LIMIT) {
-                String message = name + ": Test message";
-                signature.update(message.getBytes(StandardCharsets.UTF_8));
-                byte[] signatureBytes = signature.sign();
+                String message = "Test message";
 
-                if (blockChain.addMessage(new ChatMessage(message, name, signatureBytes))) {
-                    System.out.println("Message accepted from: " + name);
-                } else {
-                    System.out.println("Message not accepted from: " + name);
+                synchronized (blockChain) {
+                    long id = blockChain.getMessageId();
+                    String messageToSign = message + name + id;
+
+                    signature.update(messageToSign.getBytes(StandardCharsets.UTF_8));
+                    byte[] signatureBytes = signature.sign();
+
+                    blockChain.addMessage(new ChatMessage(id, message, name, signatureBytes));
                 }
 
                 try {
