@@ -26,6 +26,8 @@ public class BlockChain implements Serializable, MinerManager {
 
     private Block nextBlock;
 
+    private long messageId = 1;
+
     private volatile int size;
 
     private int difficulty;
@@ -41,6 +43,10 @@ public class BlockChain implements Serializable, MinerManager {
 
     public synchronized Block getNextBlock() {
         return new Block(nextBlock.getId(), nextBlock.getData(), nextBlock.getPreviousHash(), nextBlock.getDifficulty());
+    }
+
+    public long getMessageId() {
+        return messageId;
     }
 
     public int size() {
@@ -73,26 +79,28 @@ public class BlockChain implements Serializable, MinerManager {
         keys.put(username, key);
     }
 
-    public synchronized boolean addMessage(ChatMessage chatMessage) {
+    public synchronized void addMessage(ChatMessage chatMessage) {
         PublicKey key = keys.get(chatMessage.getUsername());
 
         if (key != null) {
             try {
-                signature.initVerify(keys.get(chatMessage.getUsername()));
-                signature.update(chatMessage.getMessage().getBytes(StandardCharsets.UTF_8));
-
-                if (signature.verify(chatMessage.getSignature())) {
-                    messages.add(chatMessage.getMessage());
-                    return true;
+                if (chatMessage.getId() < messageId) {
+                    return;
                 }
 
-                return false;
+                String verificationInput = chatMessage.getMessage() + chatMessage.getUsername() + chatMessage.getId();
+
+                signature.initVerify(key);
+                signature.update(verificationInput.getBytes(StandardCharsets.UTF_8));
+
+                if (signature.verify(chatMessage.getSignature())) {
+                    messages.add(chatMessage.getUsername() + ": " + chatMessage.getMessage());
+                    messageId++;
+                }
             } catch (InvalidKeyException | SignatureException e) {
-                return false;
+                System.out.println("Error occurred: " + e.getMessage());
             }
         }
-
-        return false;
     }
 
     public boolean acceptBlock(Block block, long generationTime) {
