@@ -14,19 +14,21 @@ import java.util.Map;
 
 public class BlockChain implements Serializable, MinerManager {
 
+    private static final int AWARD = 100;
+
     private List<Block> blocks = new ArrayList<>();
 
     private List<Miner> miners = new ArrayList<>();
 
-    private List<String> messages = new ArrayList<>();
+    private List<Transaction> previousTransactions = new ArrayList<>();
 
-    private Map<String, PublicKey> keys = new HashMap<>();
+    private List<Transaction> currentTransactions = new ArrayList<>();
+
+    private Map<Integer, PublicKey> keys = new HashMap<>();
 
     private Signature signature = Signature.getInstance("SHA256withDSA");
 
     private Block nextBlock;
-
-    private long messageId = 1;
 
     private volatile int size;
 
@@ -38,15 +40,16 @@ public class BlockChain implements Serializable, MinerManager {
 
     public BlockChain(int difficulty) throws NoSuchAlgorithmException {
         this.difficulty = difficulty;
-        this.nextBlock = new Block(1, buildMessageString(), "0", difficulty);
+        this.nextBlock = new Block(1, difficulty, "0");
     }
 
     public synchronized Block getNextBlock() {
-        return new Block(nextBlock.getId(), nextBlock.getData(), nextBlock.getPreviousHash(), nextBlock.getDifficulty());
-    }
-
-    public long getMessageId() {
-        return messageId;
+        Block block = new Block(
+                nextBlock.getId(),
+                nextBlock.getDifficulty(),
+                nextBlock.getPreviousHash());
+        block.setTransactions(nextBlock.getTransactions());
+        return block;
     }
 
     public int size() {
@@ -75,27 +78,43 @@ public class BlockChain implements Serializable, MinerManager {
         }
     }
 
-    public synchronized void setPublicKey(String username, PublicKey key) {
-        keys.put(username, key);
+    private Miner getMiner(int minerId) {
+        for (Miner miner : miners) {
+            if (miner.getMinerId() == minerId) {
+                return miner;
+            }
+        }
+        return null;
     }
 
-    public synchronized void addMessage(ChatMessage chatMessage) {
-        PublicKey key = keys.get(chatMessage.getUsername());
+    public synchronized void setPublicKey(int minerId, PublicKey key) {
+        keys.put(minerId, key);
+    }
+
+    public synchronized void addTransaction(Transaction transaction) {
+        PublicKey key = keys.get(transaction.getSenderId());
 
         if (key != null) {
             try {
-                if (chatMessage.getId() < messageId) {
-                    return;
-                }
-
-                String verificationInput = chatMessage.getMessage() + chatMessage.getUsername() + chatMessage.getId();
-
+                String transactionData = String.valueOf(transaction.getSenderId()) +
+                        transaction.getReceiverId() +
+                        transaction.getValue();
                 signature.initVerify(key);
-                signature.update(verificationInput.getBytes(StandardCharsets.UTF_8));
+                signature.update(transactionData.getBytes(StandardCharsets.UTF_8));
 
-                if (signature.verify(chatMessage.getSignature())) {
-                    messages.add(chatMessage.getUsername() + ": " + chatMessage.getMessage());
-                    messageId++;
+                if (signature.verify(transaction.getSignature())) {
+                    Miner sender = getMiner(transaction.getSenderId());
+                    Miner receiver = getMiner(transaction.getReceiverId());
+
+                    if (sender == null || receiver == null) {
+                        return;
+                    }
+
+                    if (transaction.getValue() <= sender.getCoins()) {
+                        sender.removeCoins(transaction.getValue());
+                        receiver.addCoins(transaction.getValue());
+                        currentTransactions.add(transaction);
+                    }
                 }
             } catch (InvalidKeyException | SignatureException e) {
                 System.out.println("Error occurred: " + e.getMessage());
@@ -103,7 +122,7 @@ public class BlockChain implements Serializable, MinerManager {
         }
     }
 
-    public boolean acceptBlock(Block block, long generationTime) {
+    public synchronized void acceptBlock(Block block, long generationTime) {
         String prefix = "0".repeat(difficulty);
 
         boolean isBlockValid = false;
@@ -119,38 +138,56 @@ public class BlockChain implements Serializable, MinerManager {
                     block.getHash().substring(0, difficulty).equals(prefix)) {
                 isBlockValid = true;
             }
+
+            if (block.getTransactions().size() != previousTransactions.size()) {
+                isBlockValid = false;
+            } else {
+                for (int i = 0; i < previousTransactions.size(); i++) {
+                    if (!block.getTransactions().get(i).equals(previousTransactions.get(i))) {
+                        isBlockValid = false;
+                        break;
+                    }
+                }
+            }
         }
 
         if (isBlockValid) {
             blocks.add(block);
             size++;
 
-            if (generationTime < 10) {
+            /*if (generationTime < 10) {
                 difficulty++;
             } else if (generationTime > 60) {
                 difficulty--;
+            }*/
+
+            nextBlock = new Block(block.getId() + 1, difficulty, block.getHash());
+            nextBlock.setTransactions(currentTransactions);
+
+            previousTransactions = currentTransactions;
+            currentTransactions = new ArrayList<>();
+
+            Miner miner = getMiner(block.getMinerId());
+            if (miner != null) {
+                miner.addCoins(AWARD);
             }
-
-            nextBlock = new Block(block.getId() + 1, buildMessageString(), block.getHash(), difficulty);
-            messages.clear();
-
             notifyMiners();
-            return true;
-        }
 
-        return false;
+            printInfo(block, generationTime);
+        }
     }
 
-    private String buildMessageString() {
-        if (!messages.isEmpty()) {
-            StringBuilder sb = new StringBuilder();
-            for (String message : messages) {
-                sb.append(message).append(System.lineSeparator());
-            }
-            return sb.deleteCharAt(sb.length() - 1).toString();
-        }
-
-        return "";
+    private void printInfo(Block block, long generationTime) {
+        System.out.println("Block:");
+        System.out.println("Created by miner" + block.getMinerId());
+        System.out.println("miner" + block.getMinerId() + " gets " + AWARD + " VC");
+        System.out.print(block);
+        System.out.println("Block was generating for " + generationTime + " seconds");
+        System.out.println("N stays the same");
+        /*System.out.println(generationTime < 10
+                ? "N was increased to " + difficulty : generationTime > 60
+                ? "N was decreased to " + difficulty : "N stays the same");*/
+        System.out.println();
     }
 
     public boolean checkValidity() {
