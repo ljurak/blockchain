@@ -15,19 +15,7 @@ public class Main {
     private static final int MINERS = 4;
 
     public static void main(String[] args) throws InterruptedException, NoSuchAlgorithmException {
-        BlockChain blockChain = new BlockChain();
-
-        ChatUser sarah = new ChatUser("Sarah", blockChain);
-        ChatUser mike = new ChatUser("Mike", blockChain);
-        ChatUser john = new ChatUser("John", blockChain);
-        ChatUser katie = new ChatUser("Katie", blockChain);
-
-        sarah.start();
-        mike.start();
-        john.start();
-        katie.start();
-
-        Thread.sleep(200);
+        BlockChain blockChain = new BlockChain(5);
 
         MinerThread[] miners = new MinerThread[MINERS];
 
@@ -38,6 +26,10 @@ public class Main {
 
         for (int i = 0; i < MINERS; i++) {
             miners[i].start();
+        }
+
+        for (int i = 0; i < MINERS; i++) {
+            miners[i].join();
         }
     }
 
